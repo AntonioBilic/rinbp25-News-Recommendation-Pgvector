@@ -2,8 +2,10 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { requireAuth } from './middleware/auth.js'; // JWT middleware
+import axios from 'axios';
+import cron from 'node-cron';
 
+import { requireAuth } from './middleware/auth.js';
 import newsRoutes from './routes/news.js';
 import userRoutes from './routes/users.js';
 
@@ -28,9 +30,20 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
 });
 
-// 🔐 Example protected route (test with Authorization: Bearer <token>)
+// 🔐 Example protected route
 app.get('/me', requireAuth, (req, res) => {
   res.json({ user: req.user });
+});
+
+// ⏰ Cron job to fetch articles every 30 minutes
+cron.schedule('*/30 * * * *', async () => {
+  console.log('⏰ Scheduled fetch of top stories...');
+  try {
+    const res = await axios.get(`http://localhost:${PORT}/api/news/fetch`);
+    console.log(`✅ Fetched ${res.data.length} articles`);
+  } catch (err) {
+    console.error('❌ Failed to fetch articles:', err.message);
+  }
 });
 
 // Start server

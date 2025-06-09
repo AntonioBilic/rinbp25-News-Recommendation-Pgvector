@@ -19,6 +19,7 @@
     "express-openid-connect": "^2.18.1",
     "git": "^0.1.5",
     "jsonwebtoken": "^9.0.2",
+    "node-cron": "^4.1.0",
     "openai": "^5.1.1",
     "path-to-regexp": "^6.2.1",
     "pg": "^8.16.0"

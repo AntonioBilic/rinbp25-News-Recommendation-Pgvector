@@ -11,7 +11,7 @@ const HN_API_BASE = process.env.HACKERNEWS_API_BASE;
 // 1. Fetch top stories and store in DB
 router.get('/fetch', async (req, res) => {
   try {
-    const topResponse = await axios.get(`${HN_API_BASE}/topstories.json`);
+    const topResponse = await axios.get(`${HN_API_BASE}/newstories.json`);
     const ids = topResponse.data.slice(0, 30);
 
     const stories = await Promise.all(
@@ -57,7 +57,7 @@ router.get('/fetch', async (req, res) => {
 });
 
 // 2. Top stories
-router.get('/top-stories', async (req, res) => {
+router.get('/topstories', async (req, res) => {
   const result = await pool.query(`SELECT * FROM articles ORDER BY score DESC, descendants DESC LIMIT 30`);
   res.json(result.rows);
 });
@@ -68,11 +68,17 @@ router.get('/latest', async (req, res) => {
   res.json(result.rows);
 });
 
-// 4. Hot
-router.get('/hot', async (req, res) => {
-  const result = await pool.query(`SELECT * FROM articles ORDER BY score DESC, descendants DESC LIMIT 20`);
+//4.Best stories
+router.get('/beststories', async (req, res) => {
+  const result = await pool.query(`
+    SELECT * FROM articles 
+    WHERE type = 'story' 
+    ORDER BY relevance_score DESC, score DESC 
+    LIMIT 20
+  `);
   res.json(result.rows);
 });
+
 
 // 5. Recommendations (JWT auth)
 router.get('/recommendations/:userId', requireAuth, async (req, res) => {
@@ -110,6 +116,8 @@ router.get('/saved/:userId', requireAuth, async (req, res) => {
 });
 
 // 7. Record interaction
+
+// 7. Record interaction
 router.post('/interaction', requireAuth, async (req, res) => {
   const { userId, articleId, interactionType } = req.body;
 
@@ -117,14 +125,47 @@ router.post('/interaction', requireAuth, async (req, res) => {
     return res.status(400).json({ error: 'Invalid interaction type' });
   }
 
-  await pool.query(`
-    INSERT INTO user_interactions (user_id, article_id, interaction_type)
-    VALUES ($1, $2, $3)
-    ON CONFLICT DO NOTHING
-  `, [userId, articleId, interactionType]);
+  try {
+    // Always save to user_interactions
+    await pool.query(`
+      INSERT INTO user_interactions (user_id, article_id, interaction_type)
+      VALUES ($1, $2, $3)
+      ON CONFLICT DO NOTHING
+    `, [userId, articleId, interactionType]);
 
-  res.json({ success: true });
+    // ✅ Also update user_saved
+    if (interactionType === 'like') {
+      await pool.query(`
+        INSERT INTO user_saved (user_id, article_id)
+        VALUES ($1, $2)
+        ON CONFLICT DO NOTHING
+      `, [userId, articleId]);
+    }
+
+    if (interactionType === 'dislike') {
+      await pool.query(`
+        DELETE FROM user_saved
+        WHERE user_id = $1 AND article_id = $2
+      `, [userId, articleId]);
+    }
+
+    // ✅ Also update reading history
+    if (interactionType === 'read') {
+      await pool.query(`
+        INSERT INTO user_reading_history (user_id, article_id)
+        VALUES ($1, $2)
+        ON CONFLICT DO NOTHING
+      `, [userId, articleId]);
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('❌ Error recording interaction:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
 });
+
+
 
 // 8. Related articles
 router.get('/related/:articleId', async (req, res) => {
@@ -138,5 +179,30 @@ router.get('/related/:articleId', async (req, res) => {
 
   res.json(result.rows);
 });
+
+// 9. Semantic recommendations from user history
+router.get('/recommend/semantic/:userId', requireAuth, async (req, res) => {
+  const userId = parseInt(req.params.userId);
+
+  try {
+    const result = await pool.query(`
+      SELECT * FROM articles
+      WHERE embedding IS NOT NULL
+      AND published_at > NOW() - INTERVAL '7 days'
+      ORDER BY embedding <#>
+        (SELECT AVG(a.embedding)
+         FROM user_reading_history r
+         JOIN articles a ON r.article_id = a.id
+         WHERE r.user_id = $1 AND a.embedding IS NOT NULL)
+      LIMIT 10;
+    `, [userId]);
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error('❌ Semantic recommendation error:', err);
+    res.status(500).json({ error: 'Failed to generate recommendations' });
+  }
+});
+
 
 export default router;
