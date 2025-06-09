@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>🗞 News Recommendation</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f6f6ef;
+      color: #333;
+    }
+
+    header {
+      background: #ff6600;
+      color: white;
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    header h1 {
+      font-size: 1.5rem;
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .refresh-btn {
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: bold;
+      transition: all 0.3s ease;
+    }
+
+    .refresh-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+      border-color: rgba(255, 255, 255, 0.5);
+    }
+
+    .refresh-btn.refreshing {
+      background: rgba(255, 255, 255, 0.1);
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+
+    .last-updated {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    /* Auth Modal Styles */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.5);
+    }
+
+    .modal-content {
+      background-color: white;
+      margin: 10% auto;
+      padding: 30px;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 400px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+
+    .modal h2 {
+      color: #ff6600;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+      color: #333;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: #ff6600;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 12px;
+      background: #ff6600;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+
+    .btn:hover {
+      background: #e55a00;
+    }
+
+    .btn-secondary {
+      background: #6c757d;
+    }
+
+    .btn-secondary:hover {
+      background: #5a6268;
+    }
+
+    .switch-form {
+      text-align: center;
+      margin-top: 15px;
+      color: #666;
+    }
+
+    .switch-form a {
+      color: #ff6600;
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    .switch-form a:hover {
+      text-decoration: underline;
+    }
+
+    .close {
+      color: #aaa;
+      float: right;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: -10px;
+    }
+
+    .close:hover {
+      color: #000;
+    }
+
+    /* Auth Status Bar */
+    #auth-status-bar {
+      background: #fff3e0;
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .auth-buttons {
+      display: flex;
+      gap: 10px;
+    }
+
+    .auth-btn {
+      padding: 8px 16px;
+      background: #ff6600;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .auth-btn:hover {
+      background: #e55a00;
+    }
+
+    .auth-btn.secondary {
+      background: #6c757d;
+    }
+
+    .auth-btn.secondary:hover {
+      background: #5a6268;
+    }
+
+    main {
+      padding: 2rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .categories {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .category-card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .category-card.loading {
+      opacity: 0.7;
+    }
+
+    .category-card.loading::after {
+      content: '🔄';
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      font-size: 16px;
+    }
+
+    .category-card h2 {
+      background: linear-gradient(135deg, #ff6600, #ff8533);
+      color: white;
+      padding: 15px 20px;
+      margin: 0;
+      font-size: 1.1rem;
+    }
+
+    .preview {
+      padding: 20px;
+      min-height: 150px;
+    }
+
+    .article-card {
+      margin-bottom: 15px;
+      padding: 10px;
+      border: 1px solid #eee;
+      border-radius: 6px;
+      background: #f9f9f9;
+    }
+
+    .article-card h4 {
+      font-size: 1rem;
+      margin-bottom: 8px;
+      color: #333;
+      line-height: 1.4;
+    }
+
+    .article-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .article-card a {
+      color: #ff6600;
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 500;
+      padding: 4px 8px;
+      border: 1px solid #ff6600;
+      border-radius: 4px;
+    }
+
+    .article-card a:hover {
+      background: #ff6600;
+      color: white;
+    }
+
+    .save-btn {
+      background: #28a745;
+      color: white;
+      border: none;
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+
+    .save-btn:hover {
+      background: #218838;
+    }
+
+    .save-btn.saved {
+      background: #6c757d;
+    }
+
+    .show-more-btn {
+      width: 100%;
+      padding: 12px;
+      background: #f8f8f8;
+      border: none;
+      border-top: 1px solid #eee;
+      color: #ff6600;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .show-more-btn:hover {
+      background: #ff6600;
+      color: white;
+    }
+
+    .no-articles {
+      color: #666;
+      font-style: italic;
+      text-align: center;
+      padding: 20px 0;
+    }
+
+    #full-list {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      padding: 20px;
+      display: none;
+    }
+
+    #full-category-title {
+      font-size: 1.3rem;
+      margin-bottom: 20px;
+      color: #ff6600;
+      border-bottom: 2px solid #ff6600;
+      padding-bottom: 10px;
+    }
+
+    #full-category-container {
+      display: grid;
+      gap: 15px;
+    }
+
+    .full-article-card {
+      background: #f9f9f9;
+      padding: 15px;
+      border-radius: 8px;
+      border-left: 4px solid #ff6600;
+    }
+
+    .full-article-card h4 {
+      margin-bottom: 8px;
+      color: #333;
+    }
+
+    .close-btn {
+      background: #ff6600;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-bottom: 15px;
+    }
+
+    .close-btn:hover {
+      background: #e55a00;
+    }
+
+    .error-message {
+      color: #dc3545;
+      font-size: 14px;
+      margin-top: 5px;
+    }
+
+    .success-message {
+      color: #28a745;
+      font-size: 14px;
+      margin-top: 5px;
+    }
+
+    .refresh-status {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #28a745;
+      color: white;
+      padding: 10px 15px;
+      border-radius: 6px;
+      font-size: 14px;
+      z-index: 999;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .refresh-status.show {
+      opacity: 1;
+    }
+
+    .refresh-status.error {
+      background: #dc3545;
+    }
+
+    @media (max-width: 768px) {
+      .categories {
+        grid-template-columns: 1fr;
+      }
+      
+      main {
+        padding: 1rem;
+      }
+
+      .modal-content {
+        width: 95%;
+        margin: 5% auto;
+        padding: 20px;
+      }
+
+      .header-controls {
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .refresh-btn {
+        padding: 6px 12px;
+        font-size: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🗞 News Recommendation</h1>
+    <div class="header-controls">
+      <button class="refresh-btn" onclick="manualRefresh()" id="refresh-btn">
+        🔄 Refresh Now
+      </button>
+      <div class="last-updated" id="last-updated">
+        Never updated
+      </div>
+    </div>
+  </header>
+
+  <div class="refresh-status" id="refresh-status"></div>
+
+  <div id="auth-status-bar">
+    <div id="auth-status">🔐 Please log in to access personalized features</div>
+    <div class="auth-buttons">
+      <button class="auth-btn" onclick="showModal('login')">Login</button>
+      <button class="auth-btn secondary" onclick="showModal('register')">Register</button>
+      <button class="auth-btn secondary" onclick="logout()" id="logout-btn" style="display: none;">Logout</button>
+    </div>
+  </div>
+
+  <!-- Login Modal -->
+  <div id="loginModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal('login')">&times;</span>
+      <h2>Login</h2>
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="loginUsername">Username:</label>
+          <input type="text" id="loginUsername" required>
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Password:</label>
+          <input type="password" id="loginPassword" required>
+        </div>
+        <button type="submit" class="btn">Login</button>
+        <div id="loginError" class="error-message"></div>
+      </form>
+      <div class="switch-form">
+        Don't have an account? <a href="#" onclick="switchModal('login', 'register')">Register here</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Register Modal -->
+  <div id="registerModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal('register')">&times;</span>
+      <h2>Register</h2>
+      <form id="registerForm">
+        <div class="form-group">
+          <label for="registerUsername">Username:</label>
+          <input type="text" id="registerUsername" required>
+        </div>
+        <div class="form-group">
+          <label for="registerPassword">Password:</label>
+          <input type="password" id="registerPassword" required>
+        </div>
+        <div class="form-group">
+          <label for="confirmPassword">Confirm Password:</label>
+          <input type="password" id="confirmPassword" required>
+        </div>
+        <button type="submit" class="btn">Register</button>
+        <div id="registerError" class="error-message"></div>
+        <div id="registerSuccess" class="success-message"></div>
+      </form>
+      <div class="switch-form">
+        Already have an account? <a href="#" onclick="switchModal('register', 'login')">Login here</a>
+      </div>
+    </div>
+  </div>
+
+  <main>
+    <div class="categories">
+      <div class="category-card" data-endpoint="top-stories">
+        <h2>🔝 Top Stories</h2>
+        <div class="preview" id="top-stories-preview"><div class="no-articles">Loading...</div></div>
+        <button class="show-more-btn" onclick="loadFullCategory('top-stories')">Show More</button>
+      </div>
+
+      <div class="category-card" data-endpoint="latest">
+        <h2>🆕 Latest</h2>
+        <div class="preview" id="latest-preview"><div class="no-articles">Loading...</div></div>
+        <button class="show-more-btn" onclick="loadFullCategory('latest')">Show More</button>
+      </div>
+
+      <div class="category-card" data-endpoint="hot">
+        <h2>🔥 Hot</h2>
+        <div class="preview" id="hot-preview"><div class="no-articles">Loading...</div></div>
+        <button class="show-more-btn" onclick="loadFullCategory('hot')">Show More</button>
+      </div>
+
+      <div class="category-card">
+        <h2>🤖 Recommended</h2>
+        <div class="preview" id="recommendations-preview"><div class="no-articles">Login required</div></div>
+        <button class="show-more-btn" onclick="loadFullCategory(`recommendations/${userId}`)">Show More</button>
+      </div>
+
+      <div class="category-card">
+        <h2>📌 Saved</h2>
+        <div class="preview" id="saved-preview"><div class="no-articles">Login required</div></div>
+        <button class="show-more-btn" onclick="loadFullCategory(`saved/${userId}`)">Show More</button>
+      </div>
+    </div>
+
+    <section id="full-list">
+      <button class="close-btn" onclick="closeFullList()">← Back to Categories</button>
+      <h2 id="full-category-title"></h2>
+      <div id="full-category-container"></div>
+    </section>
+  </main>
+
+  <script>
+    let token = localStorage.getItem('token') || '';
+    let userId = localStorage.getItem('userId') || '';
+    let currentUser = localStorage.getItem('username') || '';
+    let savedArticles = new Set();
+    let isRefreshing = false;
+
+    // Manual refresh functionality
+    function manualRefresh() {
+      if (isRefreshing) return;
+      
+      isRefreshing = true;
+      const refreshBtn = document.getElementById('refresh-btn');
+      refreshBtn.textContent = '🔄 Refreshing...';
+      refreshBtn.classList.add('refreshing');
+      
+      showRefreshStatus('🔄 Refreshing articles...', false);
+      
+      // Add loading animation to category cards
+      document.querySelectorAll('.category-card').forEach(card => {
+        card.classList.add('loading');
+      });
+      
+      loadAllPreviews().then(() => {
+        isRefreshing = false;
+        refreshBtn.textContent = '🔄 Refresh Now';
+        refreshBtn.classList.remove('refreshing');
+        updateLastUpdated();
+        showRefreshStatus('✅ Articles refreshed successfully!', false);
+        
+        // Remove loading animation
+        document.querySelectorAll('.category-card').forEach(card => {
+          card.classList.remove('loading');
+        });
+      }).catch(() => {
+        isRefreshing = false;
+        refreshBtn.textContent = '🔄 Refresh Now';
+        refreshBtn.classList.remove('refreshing');
+        showRefreshStatus('❌ Failed to refresh articles', true);
+        
+        // Remove loading animation
+        document.querySelectorAll('.category-card').forEach(card => {
+          card.classList.remove('loading');
+        });
+      });
+    }
+
+    // Auto-refresh after user actions
+    function autoRefreshAfterAction() {
+      if (isRefreshing) return;
+      
+      setTimeout(() => {
+        loadAllPreviews().then(() => {
+          updateLastUpdated();
+        });
+      }, 1000); // Small delay to allow server to process the action
+    }
+
+    function showRefreshStatus(message, isError) {
+      const status = document.getElementById('refresh-status');
+      status.textContent = message;
+      status.className = 'refresh-status show' + (isError ? ' error' : '');
+      
+      setTimeout(() => {
+        status.classList.remove('show');
+      }, 3000);
+    }
+
+    function updateLastUpdated() {
+      const now = new Date();
+      const timeString = now.toLocaleTimeString();
+      document.getElementById('last-updated').textContent = `Last updated: ${timeString}`;
+    }
+
+    // Modal functions
+    function showModal(type) {
+      document.getElementById(type + 'Modal').style.display = 'block';
+      document.getElementById(type + 'Error').textContent = '';
+      if (type === 'register') {
+        document.getElementById('registerSuccess').textContent = '';
+      }
+    }
+
+    function closeModal(type) {
+      document.getElementById(type + 'Modal').style.display = 'none';
+    }
+
+    function switchModal(from, to) {
+      closeModal(from);
+      showModal(to);
+    }
+
+    // Close modal when clicking outside
+    window.onclick = function(event) {
+      if (event.target.classList.contains('modal')) {
+        event.target.style.display = 'none';
+      }
+    }
+
+    // Registration
+    document.getElementById('registerForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const username = document.getElementById('registerUsername').value;
+      const password = document.getElementById('registerPassword').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
+      
+      if (password !== confirmPassword) {
+        document.getElementById('registerError').textContent = 'Passwords do not match';
+        return;
+      }
+
+      fetch('/api/users/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.error) {
+          document.getElementById('registerError').textContent = data.error;
+        } else {
+          document.getElementById('registerSuccess').textContent = 'Registration successful! You can now login.';
+          document.getElementById('registerError').textContent = '';
+          setTimeout(() => switchModal('register', 'login'), 2000);
+        }
+      })
+      .catch(err => {
+        document.getElementById('registerError').textContent = 'Registration failed. Please try again.';
+      });
+    });
+
+    // Login
+    document.getElementById('loginForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const username = document.getElementById('loginUsername').value;
+      const password = document.getElementById('loginPassword').value;
+
+      fetch('/api/users/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.token) {
+          token = data.token;
+          userId = data.user.id;
+          currentUser = data.user.username;
+          localStorage.setItem('token', token);
+          localStorage.setItem('userId', userId);
+          localStorage.setItem('username', currentUser);
+          
+          updateAuthStatus();
+          closeModal('login');
+          loadAllPreviews();
+          loadSavedArticles();
+        } else {
+          document.getElementById('loginError').textContent = data.error || 'Login failed';
+        }
+      })
+      .catch(err => {
+        document.getElementById('loginError').textContent = 'Login failed. Please try again.';
+      });
+    });
+
+    function logout() {
+      token = '';
+      userId = '';
+      currentUser = '';
+      savedArticles.clear();
+      localStorage.removeItem('token');
+      localStorage.removeItem('userId');
+      localStorage.removeItem('username');
+      updateAuthStatus();
+      loadAllPreviews();
+    }
+
+    function updateAuthStatus() {
+      const statusElement = document.getElementById('auth-status');
+      const logoutBtn = document.getElementById('logout-btn');
+      const authButtons = document.querySelector('.auth-buttons');
+      
+      if (token && currentUser) {
+        statusElement.textContent = `✅ Welcome, ${currentUser}!`;
+        logoutBtn.style.display = 'block';
+        authButtons.children[0].style.display = 'none'; // Hide login
+        authButtons.children[1].style.display = 'none'; // Hide register
+      } else {
+        statusElement.textContent = '🔐 Please log in to access personalized features';
+        logoutBtn.style.display = 'none';
+        authButtons.children[0].style.display = 'block'; // Show login
+        authButtons.children[1].style.display = 'block'; // Show register
+      }
+    }
+
+    // Load saved articles
+    function loadSavedArticles() {
+      if (!token || !userId) return;
+      
+      return fetch(`/api/news/saved/${userId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      .then(res => res.json())
+      .then(articles => {
+        savedArticles.clear();
+        if (Array.isArray(articles)) {
+          articles.forEach(article => savedArticles.add(article.id.toString()));
+        }
+      })
+      .catch(err => console.error('Failed to load saved articles:', err));
+    }
+
+    // Save/unsave article with auto-refresh
+    function toggleSaveArticle(articleId, button) {
+      if (!token || !userId) {
+        showModal('login');
+        return;
+      }
+
+      const isSaved = savedArticles.has(articleId.toString());
+      const interactionType = isSaved ? 'dislike' : 'like';
+      
+      fetch('/api/news/interaction', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          userId: parseInt(userId),
+          articleId: parseInt(articleId),
+          interactionType: interactionType
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          if (isSaved) {
+            savedArticles.delete(articleId.toString());
+            button.textContent = '💾 Save';
+            button.classList.remove('saved');
+          } else {
+            savedArticles.add(articleId.toString());
+            button.textContent = '✅ Saved';
+            button.classList.add('saved');
+          }
+          
+          // Auto-refresh after save/unsave action
+          autoRefreshAfterAction();
+        }
+      })
+      .catch(err => console.error('Failed to save article:', err));
+    }
+
+    // Record read interaction with auto-refresh
+    function recordReadInteraction(articleId) {
+      if (!token || !userId) return;
+
+      fetch('/api/news/interaction', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          userId: parseInt(userId),
+          articleId: parseInt(articleId),
+          interactionType: 'read'
+        })
+      })
+      .then(() => {
+        // Auto-refresh after read action
+        autoRefreshAfterAction();
+      })
+      .catch(err => console.error('Failed to record read interaction:', err));
+    }
+
+    function fetchPreview(endpoint, containerId) {
+      const headers = {};
+      if ((endpoint.includes('recommendations') || endpoint.includes('saved')) && token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      return fetch(`/api/news/${endpoint}`, { headers })
+        .then(res => res.json())
+        .then(articles => {
+          const container = document.getElementById(containerId);
+          if (Array.isArray(articles) && articles.length > 0) {
+            container.innerHTML = renderArticleCard(articles[0]);
+          } else {
+            const message = (endpoint.includes('recommendations') || endpoint.includes('saved')) && !token
+              ? 'Login required'
+              : 'No articles available';
+            container.innerHTML = `<div class="no-articles">${message}</div>`;
+          }
+        })
+        .catch(() => {
+          const container = document.getElementById(containerId);
+          const message = (endpoint.includes('recommendations') || endpoint.includes('saved')) && !token
+            ? 'Login required'
+            : 'Failed to load articles';
+          container.innerHTML = `<div class="no-articles">${message}</div>`;
+        });
+    }
+
+    function renderArticleCard(article) {
+      const isSaved = savedArticles.has(article.id.toString());
+      const saveButtonText = isSaved ? '✅ Saved' : '💾 Save';
+      const saveButtonClass = isSaved ? 'save-btn saved' : 'save-btn';
+      
+      return `
+        <div class="article-card">
+          <h4>${article.title}</h4>
+          <div class="article-actions">
+            <a href="${article.url || `https://news.ycombinator.com/item?id=${article.id}`}" target="_blank" onclick="recordReadInteraction(${article.id})">📖 Read</a>
+            <button class="${saveButtonClass}" onclick="toggleSaveArticle(${article.id}, this)">${saveButtonText}</button>
+          </div>
+          ${article.score ? `<p><strong>Score:</strong> ${article.score} | <strong>Comments:</strong> ${article.descendants || 0}</p>` : ''}
+        </div>
+      `;
+    }
+
+    function renderFullArticleCard(article) {
+      const isSaved = savedArticles.has(article.id.toString());
+      const saveButtonText = isSaved ? '✅ Saved' : '💾 Save';
+      const saveButtonClass = isSaved ? 'save-btn saved' : 'save-btn';
+      
+      return `
+        <div class="full-article-card">
+          <h4>${article.title}</h4>
+          <div class="article-actions">
+            <a href="${article.url || `https://news.ycombinator.com/item?id=${article.id}`}" target="_blank" onclick="recordReadInteraction(${article.id})">📖 Read Article</a>
+            <button class="${saveButtonClass}" onclick="toggleSaveArticle(${article.id}, this)">${saveButtonText}</button>
+          </div>
+          ${article.author ? `<p><strong>By:</strong> ${article.author}</p>` : ''}
+          ${article.score ? `<p><strong>Score:</strong> ${article.score} | <strong>Comments:</strong> ${article.descendants || 0}</p>` : ''}
+          ${article.published_at ? `<p><strong>Published:</strong> ${new Date(article.published_at).toLocaleDateString()}</p>` : ''}
+        </div>
+      `;
+    }
+
+    function loadFullCategory(endpoint) {
+      const headers = {};
+      if ((endpoint.includes('recommendations') || endpoint.includes('saved')) && token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      fetch(`/api/news/${endpoint}`, { headers })
+        .then(res => res.json())
+        .then(articles => {
+          const titleMap = {
+            'top-stories': '🔥 Top Stories',
+            'latest': '🆕 Latest Articles',
+            'hot': '⚡ Hot Articles',
+            [`recommendations/${userId}`]: '🤖 Recommended for You',
+            [`saved/${userId}`]: '📌 Saved Articles'
+          };
+
+          document.getElementById('full-category-title').textContent = titleMap[endpoint] || 'Articles';
+
+          const container = document.getElementById('full-category-container');
+          container.innerHTML = Array.isArray(articles) && articles.length
+            ? articles.map(renderFullArticleCard).join('')
+            : '<div class="no-articles">No articles available.</div>';
+
+          // Instantly hide categories and show full list without any transitions
+          const categoriesElement = document.querySelector('.categories');
+          const fullListElement = document.getElementById('full-list');
+          
+          categoriesElement.style.display = 'none';
+          fullListElement.style.display = 'block';
+          fullListElement.classList.add('show');
+          
+          // Instant scroll to top without animation
+          window.scrollTo(0, 0);
+        })
+        .catch(() => alert('Failed to load articles.'));
+    }
+
+    function closeFullList() {
+      // Instantly switch back to grid view without transitions
+      const categoriesElement = document.querySelector('.categories');
+      const fullListElement = document.getElementById('full-list');
+      
+      categoriesElement.style.display = 'grid';
+      fullListElement.style.display = 'none';
+      fullListElement.classList.remove('show');
+      
+      // Instant scroll to top without animation
+      window.scrollTo(0, 0);
+    }
+
+    function loadAllPreviews() {
+      const promises = [
+        fetchPreview('top-stories', 'top-stories-preview'),
+        fetchPreview('latest', 'latest-preview'),
+        fetchPreview('hot', 'hot-preview')
+      ];
+      
+      if (token && userId) {
+        promises.push(
+          fetchPreview(`recommendations/${userId}`, 'recommendations-preview'),
+          fetchPreview(`saved/${userId}`, 'saved-preview')
+        );
+      } else {
+        document.getElementById('recommendations-preview').innerHTML = '<div class="no-articles">Login required</div>';
+        document.getElementById('saved-preview').innerHTML = '<div class="no-articles">Login required</div>';
+      }
+
+      return Promise.all(promises);
+    }
+
+    // Initialize on page load
+    window.addEventListener('DOMContentLoaded', function() {
+      updateAuthStatus();
+      
+      loadAllPreviews().then(() => {
+        updateLastUpdated();
+      });
+      
+      if (token && userId) {
+        loadSavedArticles();
+      }
+    });
+  </script>
+</body>
+</html>
