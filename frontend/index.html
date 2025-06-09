@@ -440,7 +440,7 @@
 </head>
 <body>
   <header>
-    <h1>News Recommendation</h1>
+    <h1>🗞 News Recommendation</h1>
     <div class="header-controls">
       <button class="refresh-btn" onclick="manualRefresh()" id="refresh-btn">
         🔄 Refresh Now
@@ -518,7 +518,7 @@
       <div class="category-card" data-endpoint="top-stories">
         <h2>🔝 Top Stories</h2>
         <div class="preview" id="top-stories-preview"><div class="no-articles">Loading...</div></div>
-        <button class="show-more-btn" onclick="loadFullCategory('top-stories')">Show More</button>
+        <button class="show-more-btn" onclick="loadFullCategory('topstories')">Show More</button>
       </div>
 
       <div class="category-card" data-endpoint="latest">
@@ -530,7 +530,7 @@
       <div class="category-card" data-endpoint="hot">
         <h2>🏆 Best Stories</h2>
         <div class="preview" id="hot-preview"><div class="no-articles">Loading...</div></div>
-        <button class="show-more-btn" onclick="loadFullCategory('hot')">Show More</button>
+        <button class="show-more-btn" onclick="loadFullCategory('beststories')">Show More</button>
       </div>
 
       <div class="category-card">
@@ -906,9 +906,9 @@
         .then(res => res.json())
         .then(articles => {
           const titleMap = {
-            'top-stories': '🔥 Top Stories',
+            'topstories': '🔥 Top Stories',
             'latest': '🆕 Latest Articles',
-            'hot': '⚡ Hot Articles',
+            'beststories': '⚡ Hot Articles',
             [`recommendations/${userId}`]: '🤖 Recommended for You',
             [`saved/${userId}`]: '📌 Saved Articles'
           };
@@ -920,38 +920,36 @@
             ? articles.map(renderFullArticleCard).join('')
             : '<div class="no-articles">No articles available.</div>';
 
-          // Instantly hide categories and show full list without any transitions
+          // Show full list without transitions
           const categoriesElement = document.querySelector('.categories');
           const fullListElement = document.getElementById('full-list');
           
           categoriesElement.style.display = 'none';
           fullListElement.style.display = 'block';
-          fullListElement.classList.add('show');
           
-          // Instant scroll to top without animation
+          // Scroll to top
           window.scrollTo(0, 0);
         })
         .catch(() => alert('Failed to load articles.'));
     }
 
     function closeFullList() {
-      // Instantly switch back to grid view without transitions
+      // Switch back to grid view
       const categoriesElement = document.querySelector('.categories');
       const fullListElement = document.getElementById('full-list');
       
       categoriesElement.style.display = 'grid';
       fullListElement.style.display = 'none';
-      fullListElement.classList.remove('show');
       
-      // Instant scroll to top without animation
+      // Scroll to top
       window.scrollTo(0, 0);
     }
 
     function loadAllPreviews() {
       const promises = [
-        fetchPreview('top-stories', 'top-stories-preview'),
+        fetchPreview('topstories', 'top-stories-preview'),
         fetchPreview('latest', 'latest-preview'),
-        fetchPreview('hot', 'hot-preview')
+        fetchPreview('beststories', 'hot-preview')
       ];
       
       if (token && userId) {

@@ -11,7 +11,7 @@ const HN_API_BASE = process.env.HACKERNEWS_API_BASE;
 // 1. Fetch top stories and store in DB
 router.get('/fetch', async (req, res) => {
   try {
-    const topResponse = await axios.get(`${HN_API_BASE}/newstories.json`);
+    const topResponse = await axios.get(`${HN_API_BASE}/topstories.json`);
     const ids = topResponse.data.slice(0, 30);
 
     const stories = await Promise.all(
